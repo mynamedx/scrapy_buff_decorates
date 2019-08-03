@@ -1,0 +1,3 @@
+cd /d E:\pycharmPJ\buff
+call python timeStartDaily.py
+pause
