@@ -1,0 +1,5 @@
+# 在scrapy项目中添加start.py文件，用于启动爬虫
+from scrapy import cmdline
+# 在爬虫过程中 会自动将状态信息存储在crawls/storeMyRequest目录下，支持续爬
+cmdline.execute('scrapy crawl pikapika -s JOBDIR=buff/storeMyRequest'.split())
+# cmdline.execute('scrapy crawl pikapika'.split())
