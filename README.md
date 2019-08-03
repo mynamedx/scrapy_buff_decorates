@@ -1,0 +1,2 @@
+# scrapy_buff_decorates
+每日爬取网易buff中刀塔饰品的价格
