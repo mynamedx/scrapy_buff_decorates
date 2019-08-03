@@ -1,0 +1,90 @@
+# -*- coding: utf-8 -*-
+import scrapy
+from scrapy.http import Request
+from buff.items import BuffItem
+import urllib
+from urllib import request
+import re
+import time
+import datetime
+# import json
+# import jsonpath
+
+# 当前在售和当前求购变成javascript 无法爬取
+
+class PikapikaSpider(scrapy.Spider):
+    name = 'pikapika'
+    allowed_domains = ['buff.163.com']
+    start_urls = 'https://buff.163.com/market/goods?goods_id='
+    custom_settings = {
+        'LOG_LEVEL':'INFO', #减少Log输出量，仅保留必要的信息
+        # 在爬虫文件内部用custom_setting可以让这个配置信息仅对这一个爬虫生效
+    }
+
+
+    def start_requests(self):
+        for i in range(1, 31500):
+            url = self.start_urls+str(i)
+            yield Request(url, callback=self.parse, headers={'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36(KHMTL,like Gecko) Chrome/38.0.2125.122 Safari/537.36 SE 2.X MetaSr 1.0"})
+
+    def parse(self, response):
+        item = BuffItem()
+        item['d_name'] = response.xpath('//h1//text()').extract()[0]
+        item['h_name'] = response.xpath('//span/a//text()').extract()[2]
+        pat1 = '[(](.*?)[)]'
+        # item['nsell'] = re.compile(pat1).findall(response.xpath('//li[@class="selling on"]//text()').extract()[0])
+        # item['nbuy'] = response.xpath('//a/span[@id="buy_num"]//text()').extract()[0]
+        # 解析id
+        pat2 = '(?<=data-goodsid=").*?(?=")'
+        #item['id'] = re.compile(pat2).findall(response.body)[0]
+        item['id'] = re.findall(pat2, str(response.body))[0]
+        id = item['id']
+        # 用urllib爬取价格
+        headers = ('User-Agent', "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36(KHMTL,like Gecko) Chrome/38.0.2125.122 Safari/537.36 SE 2.X MetaSr 1.0")
+        opener = urllib.request.build_opener()
+        urllib.request.install_opener(opener)
+        opener.addheaders = [headers]
+        url = 'https://buff.163.com/api/market/goods/bill_order?game=dota2&goods_id='+str(id)
+        html = urllib.request.urlopen(url).read()
+        pat3 = '(?<="price": ").*(?=")'
+        pat4 = '(?<="transact_time": ).*(?=,)'
+        transact_time = re.compile(pat4).findall(html.decode('utf-8'))
+        # 获取交易时间解析成当地时间
+        dealtime = []
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        for i in range(len(transact_time)):
+            dealtime.append(time.strftime('%Y-%m-%d', time.localtime(int(transact_time[i]))))
+        for j in range(0, len(dealtime)):
+            if dealtime[j] == today:
+                continue
+            else:
+                break
+        if j == 0:
+            item['price'] = None
+        else:
+            item['price'] = re.compile(pat3).findall(html.decode('utf-8'))[0:j]
+            item['dealtime'] = dealtime[0:j]
+
+        print("已经爬取", 100 * (int(id) / 31500))#进度条
+        yield item
+
+
+
+        #
+        # today = 1
+        # for j in range(1, len(transact_time)):
+        #     if transact_time[i] == transact_time[0]:
+        #         today += 1
+        #     else:
+        #         break
+        # if today == 1:
+        #     item['price'] = re.compile(pat3).findall(html.decode('utf-8'))[0]
+        # else:
+        #     item['price'] = re.compile(pat3).findall(html.decode('utf-8'))[0:today]
+
+
+
+        # jsonobj = json.loads(html.text())
+        # item['price'] = jsonobj.jsonpath(jsonobj, '$..price')
+
+
