@@ -1,0 +1,74 @@
+# -*- coding: utf-8 -*-
+import pymysql
+
+# 失败原因 sql语句传入时参数不对，不是字典而是列表
+
+# Define your item pipelines here
+#
+# Don't forget to add your pipeline to the ITEM_PIPELINES setting
+# See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
+class test_executemany(object):
+    """
+    executemany
+    """
+    item_list = []
+    mysql_item_list_limit = 3
+    conn = pymysql.connect(host="127.0.0.1", user="root", password="123456",
+                           db='decorates', charset="utf8")
+    cursor = conn.cursor()
+
+    def process_item(self, item, spider):
+        if isinstance(item['price'], list):
+            for i in range(len(item['price'])):
+                id = item['id']
+                d_name = item['d_name']
+                h_name = item['h_name']
+                nbuy = item['nbuy']
+                nsell = item['nsell'][0]
+                price = item['price'][i]
+                dealtime = item['dealtime'][0]
+                x = int(nbuy)
+                y = float(price)
+                if x < 5 or y < 5:
+                    break
+                else:
+                    item_ = (id, d_name, h_name, nbuy, nsell, price, dealtime)
+                    self.item_list.append(item_)
+                    if len(self.item_list) >= self.mysql_item_list_limit:
+                        self.execute_sql()
+
+        else:
+            id = item['id']
+            d_name = item['d_name']
+            h_name = item['h_name']
+            nbuy = item['nbuy']
+            nsell = item['nsell'][0]
+            price = item['price']
+            dealtime = item['dealtime']
+            x = int(nbuy)
+            y = float(price)
+            if x > 5 and y > 5:
+                item_ = (id, d_name, h_name, nbuy, nsell, price, dealtime)
+                self.item_list.append(item_)
+                if len(self.item_list) >= self.mysql_item_list_limit:
+                    self.execute_sql(spider)
+
+        return item
+
+
+    def execute_sql(self):
+        # conn = pymysql.connect(host="127.0.0.1", user="root", password="123456",
+        #                    db='test', charset="utf8")
+        # cursor = conn.cursor()
+        # print(self.item_list)
+        sql = ("INSERT INTO buff(id,d_name,h_name,nbuy,nsell,price,dealtime) VALUES (%s,%s,%s,%s,%s,%s,%s)")
+        self.cursor.executemany(sql, self.item_list)
+        self.item_list = []
+        self.conn.commit()
+
+    def close_spider(self,spider):
+        self.conn.close()
+
+
+
+
